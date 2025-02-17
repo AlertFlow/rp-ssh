@@ -45,7 +45,6 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 	var port uint
 	var username string
 	var password string
-	var privateKey string
 	var privateKeyFile string
 	var privateKeyFilePassword string
 	var useSSHAgent bool
@@ -66,9 +65,6 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 		if param.Key == "Password" {
 			password = param.Value
 		}
-		if param.Key == "PrivateKey" {
-			privateKey = param.Value
-		}
 		if param.Key == "PrivateKeyFile" {
 			privateKeyFile = param.Value
 		}
@@ -84,26 +80,6 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 	}
 
 	var auth goph.Auth
-
-	// use private key if provided
-	if privateKey != "" {
-		auth, err = goph.Key(privateKey, ifEmpty(privateKeyFilePassword, ""))
-		if err != nil {
-			return plugins.Response{
-				Success: false,
-			}, err
-		}
-
-		err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
-			ID:       request.Step.ID,
-			Messages: []string{"Use private key to authenticate"},
-		})
-		if err != nil {
-			return plugins.Response{
-				Success: false,
-			}, err
-		}
-	}
 
 	// use private key file if provided
 	if privateKeyFile != "" {
@@ -320,13 +296,6 @@ func (p *Plugin) Info() (models.Plugins, error) {
 					Default:     "",
 					Required:    false,
 					Description: "The password to decrypt the private key file.",
-				},
-				{
-					Key:         "PrivateKey",
-					Type:        "textarea",
-					Default:     "",
-					Required:    false,
-					Description: "The private key to authenticate with.",
 				},
 				{
 					Key:         "Commands",
