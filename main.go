@@ -20,6 +20,14 @@ import (
 // Plugin is an implementation of the Plugin interface
 type Plugin struct{}
 
+// ifEmpty returns the defaultValue if the input is an empty string, otherwise it returns the input.
+func ifEmpty(input, defaultValue string) string {
+	if input == "" {
+		return defaultValue
+	}
+	return input
+}
+
 func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Response, error) {
 	err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
 		ID:        request.Step.ID,
@@ -79,7 +87,7 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 
 	// use private key if provided
 	if privateKey != "" {
-		auth, err = goph.Key(privateKey, privateKeyFilePassword)
+		auth, err = goph.Key(privateKey, ifEmpty(privateKeyFilePassword, ""))
 		if err != nil {
 			return plugins.Response{
 				Success: false,
@@ -99,7 +107,7 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 
 	// use private key file if provided
 	if privateKeyFile != "" {
-		auth, err = goph.Key(privateKeyFile, privateKeyFilePassword)
+		auth, err = goph.Key(privateKeyFile, ifEmpty(privateKeyFilePassword, ""))
 		if err != nil {
 			return plugins.Response{
 				Success: false,
