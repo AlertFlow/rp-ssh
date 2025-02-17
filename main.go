@@ -3,12 +3,14 @@ package main
 import (
 	"errors"
 	"net/rpc"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/AlertFlow/runner/pkg/executions"
 	"github.com/AlertFlow/runner/pkg/plugins"
 	"github.com/melbahja/goph"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/v1Flows/alertFlow/services/backend/pkg/models"
 
@@ -32,6 +34,7 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 	}
 
 	var target string
+	var port uint
 	var username string
 	var password string
 	var privateKey string
@@ -44,6 +47,10 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 	for _, param := range request.Step.Action.Params {
 		if param.Key == "Target" {
 			target = param.Value
+		}
+		if param.Key == "Port" {
+			portInt, _ := strconv.ParseUint(param.Value, 10, 16)
+			port = uint(portInt)
 		}
 		if param.Key == "Username" {
 			username = param.Value
@@ -154,7 +161,14 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 		}, err
 	}
 
-	client, err := goph.New(username, target, auth)
+	client, err := goph.NewConn(&goph.Config{
+		User:     username,
+		Addr:     target,
+		Port:     port,
+		Auth:     auth,
+		Timeout:  goph.DefaultTimeout,
+		Callback: ssh.InsecureIgnoreHostKey(),
+	})
 	if err != nil {
 		err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
 			ID: request.Step.ID,
@@ -256,6 +270,13 @@ func (p *Plugin) Info() (models.Plugins, error) {
 					Default:     "",
 					Required:    true,
 					Description: "The target server IP address or hostname",
+				},
+				{
+					Key:         "Port",
+					Type:        "number",
+					Default:     "22",
+					Required:    true,
+					Description: "The target server port",
 				},
 				{
 					Key:         "Username",
