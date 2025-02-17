@@ -272,11 +272,11 @@ func (p *Plugin) Info() (models.Plugins, error) {
 					Description: "The password to authenticate with.",
 				},
 				{
-					Key:         "PrivateKey",
-					Type:        "textarea",
-					Default:     "",
+					Key:         "UseSSHAgent",
+					Type:        "boolean",
+					Default:     "false",
 					Required:    false,
-					Description: "The private key to authenticate with.",
+					Description: "Use the SSH agent to authenticate.",
 				},
 				{
 					Key:         "PrivateKeyFile",
@@ -293,11 +293,11 @@ func (p *Plugin) Info() (models.Plugins, error) {
 					Description: "The password to decrypt the private key file.",
 				},
 				{
-					Key:         "UseSSHAgent",
-					Type:        "boolean",
-					Default:     "false",
+					Key:         "PrivateKey",
+					Type:        "textarea",
+					Default:     "",
 					Required:    false,
-					Description: "Use the SSH agent to authenticate.",
+					Description: "The private key to authenticate with.",
 				},
 				{
 					Key:         "Commands",
