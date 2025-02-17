@@ -3,10 +3,12 @@ package main
 import (
 	"errors"
 	"net/rpc"
+	"strings"
 	"time"
 
 	"github.com/AlertFlow/runner/pkg/executions"
 	"github.com/AlertFlow/runner/pkg/plugins"
+	"github.com/melbahja/goph"
 
 	"github.com/v1Flows/alertFlow/services/backend/pkg/models"
 
@@ -17,26 +19,205 @@ import (
 type Plugin struct{}
 
 func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Response, error) {
-	param1 := ""
+	err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+		ID:        request.Step.ID,
+		Messages:  []string{"Starting action"},
+		Status:    "running",
+		StartedAt: time.Now(),
+	})
+	if err != nil {
+		return plugins.Response{
+			Success: false,
+		}, err
+	}
+
+	var target string
+	var username string
+	var password string
+	var privateKey string
+	var privateKeyFile string
+	var privateKeyFilePassword string
+	var useSSHAgent bool
+	var commands []string
 
 	// access action params
 	for _, param := range request.Step.Action.Params {
-		if param.Key == "Param1" {
-			param1 = param.Value
+		if param.Key == "Target" {
+			target = param.Value
+		}
+		if param.Key == "Username" {
+			username = param.Value
+		}
+		if param.Key == "Password" {
+			password = param.Value
+		}
+		if param.Key == "PrivateKey" {
+			privateKey = param.Value
+		}
+		if param.Key == "PrivateKeyFile" {
+			privateKeyFile = param.Value
+		}
+		if param.Key == "PrivateKeyFilePassword" {
+			privateKeyFilePassword = param.Value
+		}
+		if param.Key == "UseSSHAgent" {
+			useSSHAgent = strings.ToLower(param.Value) == "true"
+		}
+		if param.Key == "Commands" {
+			commands = strings.Split(param.Value, "\n")
 		}
 	}
 
-	// update the step with the messages
-	err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
-		ID: request.Step.ID,
-		Messages: []string{
-			"Execution ID: " + request.Execution.ID.String(),
-			"Step ID: " + request.Step.ID.String(),
-			param1,
-			"Template Action finished",
-		},
+	var auth goph.Auth
+
+	// use private key if provided
+	if privateKey != "" {
+		auth, err = goph.Key(privateKey, privateKeyFilePassword)
+		if err != nil {
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+
+		err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+			ID:       request.Step.ID,
+			Messages: []string{"Use private key to authenticate"},
+		})
+		if err != nil {
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+	}
+
+	// use private key file if provided
+	if privateKeyFile != "" {
+		auth, err = goph.Key(privateKeyFile, privateKeyFilePassword)
+		if err != nil {
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+
+		err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+			ID:       request.Step.ID,
+			Messages: []string{"Use private key file to authenticate"},
+		})
+		if err != nil {
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+	}
+
+	if useSSHAgent {
+		auth, err = goph.UseAgent()
+		if err != nil {
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+
+		err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+			ID:       request.Step.ID,
+			Messages: []string{"Use ssh agent to authenticate"},
+		})
+		if err != nil {
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+	}
+
+	// use password if provided
+	if password != "" {
+		auth = goph.Password(password)
+
+		err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+			ID:       request.Step.ID,
+			Messages: []string{"Use password to authenticate"},
+		})
+		if err != nil {
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+	}
+
+	err = executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+		ID:       request.Step.ID,
+		Messages: []string{"Connecting to remote server " + target + " as " + username},
+	})
+	if err != nil {
+		return plugins.Response{
+			Success: false,
+		}, err
+	}
+
+	client, err := goph.New(username, target, auth)
+	if err != nil {
+		err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+			ID: request.Step.ID,
+			Messages: []string{
+				"Failed to connect to remote server " + target + " as " + username,
+				err.Error(),
+			},
+			Status:     "error",
+			FinishedAt: time.Now(),
+		})
+		if err != nil {
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+
+		return plugins.Response{
+			Success: false,
+		}, err
+	}
+
+	// Defer closing the network connection.
+	defer client.Close()
+
+	for _, command := range commands {
+		// Execute your command.
+		out, err := client.Run(command)
+		if err != nil {
+			err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+				ID: request.Step.ID,
+				Messages: []string{
+					"Failed to execute command: " + command,
+					err.Error(),
+				},
+				Status:     "error",
+				FinishedAt: time.Now(),
+			})
+			if err != nil {
+				return plugins.Response{
+					Success: false,
+				}, err
+			}
+
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+
+		err = executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+			ID:       request.Step.ID,
+			Messages: []string{string(out)},
+		})
+		if err != nil {
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+	}
+
+	err = executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+		ID:         request.Step.ID,
+		Messages:   []string{"Finished ssh action"},
 		Status:     "success",
-		StartedAt:  time.Now(),
 		FinishedAt: time.Now(),
 	})
 	if err != nil {
@@ -58,23 +239,72 @@ func (p *Plugin) HandlePayload(request plugins.PayloadHandlerRequest) (plugins.R
 
 func (p *Plugin) Info() (models.Plugins, error) {
 	var plugin = models.Plugins{
-		Name:    "Template",
+		Name:    "SSH",
 		Type:    "action",
 		Version: "1.1.0",
 		Author:  "JustNZ",
 		Actions: models.Actions{
-			Name:        "Template",
-			Description: "Template description",
-			Plugin:      "template",
-			Icon:        "solar:clipboard-list-broken",
-			Category:    "Template",
+			Name:        "SSH",
+			Description: "Connect to a remote server using SSH and execute commands",
+			Plugin:      "ssh",
+			Icon:        "solar:server-path-linear",
+			Category:    "Utility",
 			Params: []models.Params{
 				{
-					Key:         "Param1",
+					Key:         "Target",
+					Type:        "text",
+					Default:     "",
+					Required:    true,
+					Description: "The target server IP address or hostname",
+				},
+				{
+					Key:         "Username",
+					Type:        "text",
+					Default:     "",
+					Required:    true,
+					Description: "The username to authenticate with",
+				},
+				{
+					Key:         "Password",
+					Type:        "password",
+					Default:     "",
+					Required:    false,
+					Description: "The password to authenticate with.",
+				},
+				{
+					Key:         "PrivateKey",
+					Type:        "textarea",
+					Default:     "",
+					Required:    false,
+					Description: "The private key to authenticate with.",
+				},
+				{
+					Key:         "PrivateKeyFile",
 					Type:        "text",
 					Default:     "",
 					Required:    false,
-					Description: "Param1 description",
+					Description: "The private key file path to authenticate with. This path must be accessible by the runner.",
+				},
+				{
+					Key:         "PrivateKeyFilePassword",
+					Type:        "password",
+					Default:     "",
+					Required:    false,
+					Description: "The password to decrypt the private key file.",
+				},
+				{
+					Key:         "UseSSHAgent",
+					Type:        "boolean",
+					Default:     "false",
+					Required:    false,
+					Description: "Use the SSH agent to authenticate.",
+				},
+				{
+					Key:         "Commands",
+					Type:        "textarea",
+					Default:     "",
+					Required:    true,
+					Description: "The commands to execute on the remote server. Each command should be on a new line.",
 				},
 			},
 		},
