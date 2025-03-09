@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/rpc"
 	"strconv"
@@ -177,9 +178,13 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 	// Defer closing the network connection.
 	defer client.Close()
 
+	ctx := context.Background()
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+
 	for _, command := range commands {
 		// Execute your command.
-		out, err := client.Run(command)
+		out, err := client.RunContext(ctxWithTimeout, command)
 		if err != nil {
 			err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
 				ID: request.Step.ID,
@@ -201,10 +206,18 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 			}, err
 		}
 
-		err = executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
-			ID:       request.Step.ID,
-			Messages: []string{string(out)},
-		})
+		outputLines := strings.Split(string(out), "\n")
+		for _, line := range outputLines {
+			err = executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+				ID:       request.Step.ID,
+				Messages: []string{line},
+			})
+			if err != nil {
+				return plugins.Response{
+					Success: false,
+				}, err
+			}
+		}
 		if err != nil {
 			return plugins.Response{
 				Success: false,
