@@ -183,6 +183,7 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 			Messages: []string{
 				"-------------------------",
 				"Executing command: " + command,
+				"-------------------------",
 			},
 		})
 		if err != nil {
