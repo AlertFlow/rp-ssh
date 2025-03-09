@@ -178,13 +178,26 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 	defer client.Close()
 
 	for _, command := range commands {
+		err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
+			ID: request.Step.ID,
+			Messages: []string{
+				"-------------------------",
+				"Executing command: " + command,
+			},
+		})
+		if err != nil {
+			return plugins.Response{
+				Success: false,
+			}, err
+		}
+
 		// Execute your command.
 		out, err := client.Run(command)
 		if err != nil {
 			err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
 				ID: request.Step.ID,
 				Messages: []string{
-					"Failed to execute command: " + command,
+					"Failed to execute command",
 					err.Error(),
 				},
 				Status:     "error",
