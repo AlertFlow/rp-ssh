@@ -274,13 +274,13 @@ func (p *Plugin) Info() (models.Plugins, error) {
 	var plugin = models.Plugins{
 		Name:    "SSH",
 		Type:    "action",
-		Version: "1.1.0",
+		Version: "1.0.0",
 		Author:  "JustNZ",
 		Actions: models.Actions{
 			Name:        "SSH",
 			Description: "Connect to a remote server using SSH and execute commands",
 			Plugin:      "ssh",
-			Icon:        "solar:server-path-linear",
+			Icon:        "hugeicons:server-stack-03",
 			Category:    "Utility",
 			Params: []models.Params{
 				{
