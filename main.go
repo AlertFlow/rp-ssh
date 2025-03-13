@@ -49,6 +49,8 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 	var privateKeyFilePassword string
 	var useSSHAgent bool
 	var commands []string
+	var sudo bool
+	var sudoPassword string
 
 	// access action params
 	for _, param := range request.Step.Action.Params {
@@ -76,6 +78,12 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 		}
 		if param.Key == "Commands" {
 			commands = strings.Split(param.Value, "\n")
+		}
+		if param.Key == "Sudo" {
+			sudo = strings.ToLower(param.Value) == "true"
+		}
+		if param.Key == "SudoPassword" {
+			sudoPassword = param.Value
 		}
 	}
 
@@ -193,7 +201,12 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 		}
 
 		// Execute your command.
-		out, err := client.Run(command)
+		var out []byte
+		if sudo {
+			out, err = client.Run("echo " + sudoPassword + "| sudo -S " + command)
+		} else {
+			out, err = client.Run(command)
+		}
 		if err != nil {
 			err := executions.UpdateStep(request.Config, request.Execution.ID.String(), models.ExecutionSteps{
 				ID: request.Step.ID,
@@ -318,6 +331,13 @@ func (p *Plugin) Info() (models.Plugins, error) {
 					Default:     "true",
 					Required:    false,
 					Description: "Use sudo to execute the commands",
+				},
+				{
+					Key:         "SudoPassword",
+					Type:        "password",
+					Default:     "",
+					Required:    false,
+					Description: "The password to authenticate with sudo",
 				},
 				{
 					Key:         "UseSSHAgent",
