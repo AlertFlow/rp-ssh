@@ -299,20 +299,6 @@ func (p *Plugin) Info() (models.Plugins, error) {
 					Description: "The password to authenticate with",
 				},
 				{
-					Key:         "Sudo",
-					Type:        "boolean",
-					Default:     "false",
-					Required:    false,
-					Description: "Use sudo to execute the commands",
-				},
-				{
-					Key:         "UseSSHAgent",
-					Type:        "boolean",
-					Default:     "false",
-					Required:    false,
-					Description: "Use the SSH agent to authenticate",
-				},
-				{
 					Key:         "PrivateKeyFile",
 					Type:        "text",
 					Default:     "",
@@ -325,6 +311,20 @@ func (p *Plugin) Info() (models.Plugins, error) {
 					Default:     "",
 					Required:    false,
 					Description: "The password to decrypt the private key file",
+				},
+				{
+					Key:         "Sudo",
+					Type:        "boolean",
+					Default:     "true",
+					Required:    false,
+					Description: "Use sudo to execute the commands",
+				},
+				{
+					Key:         "UseSSHAgent",
+					Type:        "boolean",
+					Default:     "false",
+					Required:    false,
+					Description: "Use the SSH agent to authenticate",
 				},
 				{
 					Key:         "Commands",
