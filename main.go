@@ -34,7 +34,11 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 		Messages: []models.Message{
 			{
 				Title: "SSH",
-				Lines: []string{"Start Action"},
+				Lines: []models.Line{
+					{
+						Content: "Starting ssh action",
+					},
+				},
 			},
 		},
 		Status:    "running",
@@ -108,7 +112,11 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 			Messages: []models.Message{
 				{
 					Title: "SSH",
-					Lines: []string{"Use private key file to authenticate"},
+					Lines: []models.Line{
+						{
+							Content: "Use private key file to authenticate",
+						},
+					},
 				},
 			},
 		}, request.Platform)
@@ -132,7 +140,11 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 			Messages: []models.Message{
 				{
 					Title: "SSH",
-					Lines: []string{"Use ssh agent to authenticate"},
+					Lines: []models.Line{
+						{
+							Content: "Use SSH agent to authenticate",
+						},
+					},
 				},
 			},
 		}, request.Platform)
@@ -152,7 +164,11 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 			Messages: []models.Message{
 				{
 					Title: "SSH",
-					Lines: []string{"Use password to authenticate"},
+					Lines: []models.Line{
+						{
+							Content: "Use password to authenticate",
+						},
+					},
 				},
 			},
 		}, request.Platform)
@@ -168,7 +184,11 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 		Messages: []models.Message{
 			{
 				Title: "SSH",
-				Lines: []string{"Connecting to remote server " + target + " as " + username},
+				Lines: []models.Line{
+					{
+						Content: "Connecting to remote server " + target + " as " + username,
+					},
+				},
 			},
 		},
 	}, request.Platform)
@@ -192,9 +212,15 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 			Messages: []models.Message{
 				{
 					Title: "SSH",
-					Lines: []string{
-						"Failed to connect to remote server " + target + " as " + username,
-						err.Error(),
+					Lines: []models.Line{
+						{
+							Content: "Failed to connect to remote server",
+							Color:   "danger",
+						},
+						{
+							Content: err.Error(),
+							Color:   "danger",
+						},
 					},
 				},
 			},
@@ -221,10 +247,16 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 			Messages: []models.Message{
 				{
 					Title: "SSH",
-					Lines: []string{
-						"-------------------------",
-						"Executing command: " + command,
-						"-------------------------",
+					Lines: []models.Line{
+						{
+							Content: "-------------------------",
+						},
+						{
+							Content: "Executing command: " + command,
+						},
+						{
+							Content: "-------------------------",
+						},
 					},
 				},
 			},
@@ -248,9 +280,15 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 				Messages: []models.Message{
 					{
 						Title: "SSH",
-						Lines: []string{
-							"Failed to execute command",
-							err.Error(),
+						Lines: []models.Line{
+							{
+								Content: "Failed to execute command",
+								Color:   "danger",
+							},
+							{
+								Content: err.Error(),
+								Color:   "danger",
+							},
 						},
 					},
 				},
@@ -275,7 +313,11 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 				Messages: []models.Message{
 					{
 						Title: "SSH",
-						Lines: []string{line},
+						Lines: []models.Line{
+							{
+								Content: line,
+							},
+						},
 					},
 				},
 			}, request.Platform)
@@ -297,7 +339,12 @@ func (p *Plugin) ExecuteTask(request plugins.ExecuteTaskRequest) (plugins.Respon
 		Messages: []models.Message{
 			{
 				Title: "SSH",
-				Lines: []string{"Finished ssh action"},
+				Lines: []models.Line{
+					{
+						Content: "SSH action completed",
+						Color:   "success",
+					},
+				},
 			},
 		},
 		Status:     "success",
@@ -324,7 +371,7 @@ func (p *Plugin) Info(request plugins.InfoRequest) (models.Plugin, error) {
 	var plugin = models.Plugin{
 		Name:    "SSH",
 		Type:    "action",
-		Version: "1.1.1",
+		Version: "1.1.2",
 		Author:  "JustNZ",
 		Action: models.Action{
 			Name:        "SSH",
